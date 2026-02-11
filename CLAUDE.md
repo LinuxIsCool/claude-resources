@@ -20,14 +20,3 @@ skills/resources/scripts/          Executable bash scripts
 commands/                          Thin interfaces → skill workflows
 agents/librarian.md                General assistant
 ```
-
-## Path Resolution
-
-This plugin lives at `resources/linuxiscool/claude-resources/`. Two levels up
-from the plugin root is the resources root where all repos live. Scripts use:
-
-```bash
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
-RESOURCES="$(cd "${PLUGIN_ROOT}/../.." && pwd)"
-REGISTRY="${RESOURCES}/registry.yaml"
-```
