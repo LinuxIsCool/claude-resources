@@ -10,7 +10,7 @@
     {
       "name": "claude-resources",
       "description": "Sync, restore, status, and add git repos tracked in a central registry",
-      "source": "."
+      "source": "./"
     }
   ]
 }
