@@ -7,5 +7,5 @@
   },
   "commands": ["./commands/"],
   "skills": ["./skills/"],
-  "agents": ["./agents/"]
+  "agents": ["./agents/librarian.md"]
 }
