@@ -1,0 +1,6 @@
+{
+  "name": "claude-resources",
+  "version": "0.1.0",
+  "description": "Manage local resource repositories — sync, restore, status, and add repos tracked in a central registry",
+  "author": "LinuxIsCool"
+}
