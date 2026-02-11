@@ -8,6 +8,41 @@ and add resources — replacing ad-hoc scripts with a structured, self-hosting
 plugin that lives inside the directory it manages.
 
 
+## Getting Started
+
+Add the marketplace to your `.claude/settings.json`:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "claude-resources": {
+      "source": {
+        "source": "github",
+        "repo": "LinuxIsCool/claude-resources"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "claude-resources@claude-resources": true
+  }
+}
+```
+
+Then create a `registry.yaml` in your resources directory and start using the
+commands. The plugin expects resources to live at `.claude/local/resources/` with
+the plugin itself at `.claude/local/resources/linuxiscool/claude-resources/`.
+
+To bootstrap from scratch:
+
+```bash
+mkdir -p .claude/local/resources/linuxiscool
+git clone https://github.com/LinuxIsCool/claude-resources.git \
+  .claude/local/resources/linuxiscool/claude-resources
+```
+
+After that, `/claude-resources:restore` will clone everything in your registry.
+
+
 ## Commands
 
 | Command | Description |

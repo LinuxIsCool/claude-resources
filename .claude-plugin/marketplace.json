@@ -1,0 +1,16 @@
+{
+  "name": "claude-resources",
+  "version": "0.1.0",
+  "description": "Manage local resource repositories tracked in a central registry",
+  "owner": {
+    "name": "LinuxIsCool",
+    "url": "https://github.com/LinuxIsCool"
+  },
+  "plugins": [
+    {
+      "name": "claude-resources",
+      "description": "Sync, restore, status, and add git repos tracked in a central registry",
+      "source": "."
+    }
+  ]
+}
