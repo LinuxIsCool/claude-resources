@@ -39,21 +39,6 @@ Add to your `.claude/settings.json`:
 }
 ```
 
-### Bootstrap the resources directory
-
-The plugin expects resources at `.claude/local/resources/` with the plugin itself
-cloned inside that directory. To set up from scratch:
-
-```bash
-mkdir -p .claude/local/resources/linuxiscool
-git clone https://github.com/LinuxIsCool/claude-resources.git \
-  .claude/local/resources/linuxiscool/claude-resources
-```
-
-Create a `registry.yaml` at `.claude/local/resources/registry.yaml` to start
-tracking repos, then use `/claude-resources:restore` to clone everything listed.
-
-
 ## Commands
 
 | Command | Description |
