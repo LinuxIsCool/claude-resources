@@ -17,22 +17,51 @@
 GLOBAL_STORE="$HOME/.claude/local/resources"
 GLOBAL_REGISTRY="$GLOBAL_STORE/registry.yaml"
 
-# Project store: prefer explicit env var (solves self-hosting problem when
-# this plugin is itself symlinked from global), then fall back to resolving
-# relative to the calling script via BASH_SOURCE[1].
-if [ -n "${CLAUDE_RESOURCES_DIR:-}" ]; then
-  PROJECT_STORE="$CLAUDE_RESOURCES_DIR"
-elif [ -n "${BASH_SOURCE[1]:-}" ]; then
-  _caller_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
-  _plugin_root="${CLAUDE_PLUGIN_ROOT:-$(cd "$_caller_dir/../../.." && pwd)}"
-  PROJECT_STORE="$(cd "$_plugin_root/../.." && pwd)"
-  unset _caller_dir _plugin_root
-else
-  # Direct execution of lib.sh (shouldn't happen, but safe fallback)
-  _plugin_root="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
-  PROJECT_STORE="$(cd "$_plugin_root/../.." && pwd)"
-  unset _plugin_root
-fi
+# Project store resolution — three strategies, in priority order:
+#
+# 1. Explicit env var (set by wrapper scripts or CI)
+# 2. Relative to calling script via BASH_SOURCE[1] (works when plugin
+#    lives inside the resources directory, e.g. linuxiscool/claude-resources/)
+# 3. Relative to working directory (fallback for plugin cache, where
+#    CLAUDE_PLUGIN_ROOT points to ~/.claude/plugins/cache/ instead of
+#    the resources directory)
+#
+_resolve_project_store() {
+  # Strategy 1: explicit env var
+  if [ -n "${CLAUDE_RESOURCES_DIR:-}" ]; then
+    echo "$CLAUDE_RESOURCES_DIR"
+    return
+  fi
+
+  # Strategy 2: navigate from calling script's location
+  # Only works when the plugin lives inside the resources directory
+  # (not when running from the plugin cache at ~/.claude/plugins/)
+  if [ -n "${BASH_SOURCE[1]:-}" ]; then
+    local _caller_dir _plugin_root _candidate
+    _caller_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
+    _plugin_root="${CLAUDE_PLUGIN_ROOT:-$(cd "$_caller_dir/../../.." && pwd)}"
+    _candidate="$(cd "$_plugin_root/../.." && pwd)"
+    if [ -f "$_candidate/registry.yaml" ] && [[ "$_candidate" != *"/.claude/plugins/"* ]]; then
+      echo "$_candidate"
+      return
+    fi
+  fi
+
+  # Strategy 3: relative to working directory
+  if [ -f "$PWD/.claude/local/resources/registry.yaml" ]; then
+    echo "$PWD/.claude/local/resources"
+    return
+  fi
+
+  # Last resort: global store (if it exists) or pwd
+  if [ -d "$GLOBAL_STORE" ]; then
+    echo "$GLOBAL_STORE"
+  else
+    echo "$PWD/.claude/local/resources"
+  fi
+}
+
+PROJECT_STORE="$(_resolve_project_store)"
 
 # Backward-compatible aliases
 RESOURCES="$PROJECT_STORE"
