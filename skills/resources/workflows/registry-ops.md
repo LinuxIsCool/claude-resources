@@ -2,6 +2,10 @@
 
 Operations that keep `registry.yaml` and the resources directory in agreement.
 
+All scripts are global-store aware. When `~/.claude/local/resources/` exists,
+they clone to the global store and symlink into the project. When it doesn't
+exist, they operate on the project store directly (original behavior).
+
 
 ## Sync
 
@@ -13,6 +17,13 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/resources/scripts/sync-registry.sh"
 ```
 
 Use `--verbose` to see every repo, not just additions and gaps.
+
+When the global store is enabled, sync automatically **promotes** real clones: it
+moves them to the global store and replaces them with symlinks. This is safe and
+idempotent — the remote URL is preserved, and the global registry is updated.
+
+Sync also detects and reports broken symlinks (repos that were removed from the
+global store but still have symlinks in the project).
 
 After syncing, review the output. If repos were added, check that the URLs look
 correct. If repos are missing, the user may want to run restore.
@@ -29,6 +40,10 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/resources/scripts/restore-resources.sh"
 This is the primary way to set up a fresh machine or recover after deletions. It
 reads `registry.yaml` top to bottom and clones each missing repo.
 
+When the global store exists, restore clones into the global store and symlinks
+into the project. If a repo already exists in the global store (cloned by another
+project), it just creates the symlink — no redundant clone.
+
 
 ## Add
 
@@ -38,8 +53,9 @@ Clone a single repo and register it in one step.
 bash "${CLAUDE_PLUGIN_ROOT}/skills/resources/scripts/add-resource.sh" <owner/repo>
 ```
 
-Accepts `owner/repo` shorthand or full git URLs. Clones into the resources
-directory and appends the entry to `registry.yaml`.
+Accepts `owner/repo` shorthand or full git URLs. When the global store exists,
+clones there and symlinks into the project. Registers in both project and global
+registries.
 
 
 ## Add Org

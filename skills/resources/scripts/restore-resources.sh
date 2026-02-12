@@ -4,13 +4,14 @@
 # Clones repos listed in registry.yaml into the resources directory.
 # Skips repos that already exist on disk.
 #
+# When a global store exists (~/.claude/local/resources/), clones there
+# and symlinks into the project store.
+#
 # Usage: restore-resources.sh
 
 set -euo pipefail
 
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
-RESOURCES="$(cd "${PLUGIN_ROOT}/../.." && pwd)"
-REGISTRY="${RESOURCES}/registry.yaml"
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 if [ ! -f "$REGISTRY" ]; then
   echo "Registry not found: $REGISTRY"
@@ -43,17 +44,15 @@ while IFS= read -r line; do
   # URL line: 4-space indent, url: value
   if [[ "$line" =~ ^[[:space:]]{4}url:[[:space:]]+(.+)$ ]]; then
     url="${BASH_REMATCH[1]}"
-    dest="$RESOURCES/$current_owner/$current_repo"
 
-    if [ -d "$dest" ]; then
+    if [ -e "$RESOURCES/$current_owner/$current_repo" ]; then
       echo "skip  $current_owner/$current_repo (exists)"
       skipped=$((skipped + 1))
-    else
-      echo "clone $current_owner/$current_repo"
-      mkdir -p "$RESOURCES/$current_owner"
-      git clone "$url" "$dest"
-      cloned=$((cloned + 1))
+      continue
     fi
+
+    clone_or_link "$current_owner" "$current_repo" "$url"
+    cloned=$((cloned + 1))
   fi
 done < "$REGISTRY"
 

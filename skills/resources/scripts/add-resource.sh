@@ -4,6 +4,9 @@
 # Accepts either a full git URL or an owner/repo shorthand.
 # Clones into the resources directory and adds the entry to the registry.
 #
+# When a global store exists (~/.claude/local/resources/), clones there
+# and symlinks into the project store.
+#
 # Usage: add-resource.sh <owner/repo | git-url>
 #
 # Examples:
@@ -13,9 +16,7 @@
 
 set -euo pipefail
 
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
-RESOURCES="$(cd "${PLUGIN_ROOT}/../.." && pwd)"
-REGISTRY="${RESOURCES}/registry.yaml"
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 if [ -z "${1:-}" ]; then
   echo "Usage: add-resource.sh <owner/repo | git-url>"
@@ -39,27 +40,11 @@ else
   exit 1
 fi
 
-dest="$RESOURCES/$owner/$repo"
-
-# Check if already exists
-if [ -d "$dest" ]; then
+# Check if already exists (handles both real dirs and symlinks)
+if [ -e "$RESOURCES/$owner/$repo" ]; then
   echo "skip  $owner/$repo already exists on disk"
   exit 0
 fi
 
-# Clone
-echo "clone $owner/$repo"
-mkdir -p "$RESOURCES/$owner"
-git clone "$url" "$dest"
-
-# Add to registry if not already present
-if ! grep -qP "^  ${repo}:" "$REGISTRY" 2>/dev/null; then
-  # Ensure owner section exists
-  if ! grep -qP "^${owner}:" "$REGISTRY" 2>/dev/null; then
-    printf '\n%s:\n' "$owner" >> "$REGISTRY"
-  fi
-  sed -i "/^${owner}:$/a\\  ${repo}:\n    url: ${url}" "$REGISTRY"
-  echo " add  $owner/$repo → registry"
-else
-  echo "  ok  $owner/$repo already in registry"
-fi
+clone_or_link "$owner" "$repo" "$url"
+echo " add  $owner/$repo → registry"

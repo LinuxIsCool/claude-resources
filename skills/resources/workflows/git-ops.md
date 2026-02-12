@@ -11,26 +11,38 @@ Show git status for every repo in the resources directory.
 bash "${CLAUDE_PLUGIN_ROOT}/skills/resources/scripts/status-all.sh"
 ```
 
-Use `--short` to only show dirty repos and those out of sync with upstream.
+Flags:
+- `--short`, `-s` — only show dirty repos and those out of sync with upstream
+- `--fetch`, `-f` — run `git fetch` before checking ahead/behind (reveals staleness against remote)
 
 Reports per-repo:
 - `clean` / `dirty` — working tree state
+- `→` / ` ` — symlinked from global store / local clone
 - `ahead N` — local commits not pushed
 - `behind N` — remote commits not pulled
 - `no upstream` — no tracking branch configured
 
+Also detects and reports broken symlinks.
+
 
 ## Pull All
 
-Pull latest changes across all repos. This is a Claude-driven workflow, not a
-script, because it benefits from judgment about conflicts and errors.
+Pull latest changes across all repos using fast-forward only.
 
-### Procedure
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/skills/resources/scripts/pull-all.sh"
+```
 
-1. Run status-all.sh to identify repos with upstream tracking
-2. For each clean repo with a tracking branch, run `git -C <path> pull --ff-only`
-3. Skip dirty repos — report them so the user can handle manually
-4. Report results: pulled, skipped, failed
+Accepts an optional `owner/repo` argument to pull only one specific repo.
+
+When the global store exists, pull operates there — one pull updates the repo
+for all projects that symlink to it. Otherwise operates on the project store.
+
+Behavior:
+- Skips dirty repos (report them so the user can handle manually)
+- Skips repos without an upstream tracking branch
+- Uses `git pull --ff-only` for safety (no merge commits)
+- Reports pulled, skipped, and failed counts
 
 
 ## Clone
