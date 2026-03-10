@@ -99,8 +99,9 @@ HEADER
 
 registry_add() {
   # Idempotent registry entry addition
-  # Usage: registry_add <registry_file> <owner> <repo> <url>
-  local file="$1" owner="$2" repo="$3" url="$4"
+  # Usage: registry_add <registry_file> <owner> <repo> <url> [tags]
+  # tags: optional comma-separated string, e.g. "active,owned,venture"
+  local file="$1" owner="$2" repo="$3" url="$4" tags="${5:-}"
 
   # Check if this repo already exists under this specific owner section
   # (section-aware: only matches repo lines between this owner header
@@ -119,7 +120,40 @@ registry_add() {
     printf '\n%s:\n' "$owner" >> "$file"
   fi
 
-  sed -i "/^${owner}:$/a\\  ${repo}:\n    url: ${url}" "$file"
+  # Build the entry block
+  local entry="  ${repo}:\n    url: ${url}"
+  if [ -n "$tags" ]; then
+    # Convert comma-separated to inline YAML list: "a,b,c" → "[a, b, c]"
+    local yaml_tags
+    yaml_tags="[$(echo "$tags" | sed 's/,/, /g')]"
+    entry="${entry}\n    tags: ${yaml_tags}"
+  fi
+
+  sed -i "/^${owner}:$/a\\${entry}" "$file"
+}
+
+registry_list_by_tag() {
+  # List owner/repo pairs matching a tag
+  # Usage: registry_list_by_tag <registry_file> <tag>
+  # Outputs one "owner/repo" per line
+  local file="$1" tag="$2"
+
+  awk -v tag="$tag" '
+    /^[a-zA-Z0-9_.-]+:$/ { owner=substr($0,1,length($0)-1); next }
+    /^  [a-zA-Z0-9_.-]+:$/ { repo=substr($0,3,length($0)-3); next }
+    /^    tags:/ {
+      if (index($0, tag)) {
+        # Verify it is a whole-word match (not substring)
+        n = split($0, parts, /[][, ]+/)
+        for (i=1; i<=n; i++) {
+          if (parts[i] == tag) {
+            print owner"/"repo
+            break
+          }
+        }
+      }
+    }
+  ' "$file"
 }
 
 symlink_to_global() {
@@ -228,4 +262,24 @@ promote_to_global() {
   fi
 
   echo "  ↑   $owner/$repo promoted to global store"
+}
+
+# --- Drive Store ---
+
+DRIVE_STORE="${CLAUDE_RESOURCES_DRIVE:-/mnt/data-24tb/52_Libraries/git}"
+
+ensure_drive_store() {
+  # Verify drive store mount point exists and is accessible
+  local mount_point
+  mount_point="$(dirname "$DRIVE_STORE")"
+  # Walk up to find a mount point (handles nested paths like /mnt/data-24tb/52_Libraries/git)
+  while [ "$mount_point" != "/" ] && ! mountpoint -q "$mount_point" 2>/dev/null; do
+    mount_point="$(dirname "$mount_point")"
+  done
+  if [ "$mount_point" = "/" ]; then
+    echo "error: drive store mount point not found for $DRIVE_STORE"
+    echo "Set CLAUDE_RESOURCES_DRIVE to override the path"
+    return 1
+  fi
+  mkdir -p "$DRIVE_STORE"
 }

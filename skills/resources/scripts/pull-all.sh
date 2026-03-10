@@ -6,10 +6,11 @@
 #
 # Skips dirty repos. Uses --ff-only for safety (no merge commits).
 #
-# Usage: pull-all.sh [owner/repo]
+# Usage: pull-all.sh [owner/repo] [--tag=<tag>]
 #
 # Arguments:
-#   owner/repo   Optional filter — only pull this specific repo
+#   owner/repo     Optional filter — only pull this specific repo
+#   --tag=<tag>    Only pull repos matching this tag in registry.yaml
 
 set -euo pipefail
 
@@ -24,8 +25,27 @@ else
   echo "Pulling from project store: $PULL_ROOT"
 fi
 
-# Optional filter
-FILTER="${1:-}"
+# Parse arguments
+FILTER=""
+TAG_FILTER=""
+for arg in "$@"; do
+  case "$arg" in
+    --tag=*) TAG_FILTER="${arg#--tag=}" ;;
+    *) FILTER="$arg" ;;
+  esac
+done
+
+# Build tag filter set if requested
+declare -A TAG_REPOS=()
+if [ -n "$TAG_FILTER" ]; then
+  while IFS= read -r entry; do
+    TAG_REPOS["$entry"]=1
+  done < <(registry_list_by_tag "$REGISTRY" "$TAG_FILTER")
+  if [ ${#TAG_REPOS[@]} -eq 0 ]; then
+    echo "No repos found with tag: $TAG_FILTER"
+    exit 0
+  fi
+fi
 
 pulled=0
 skipped=0
@@ -43,8 +63,11 @@ for owner_dir in "$PULL_ROOT"/*/; do
     [ -d "$repo_dir/.git" ] || continue
     repo=$(basename "$repo_dir")
 
-    # Apply filter if given
+    # Apply filters
     if [ -n "$FILTER" ] && [ "$owner/$repo" != "$FILTER" ]; then
+      continue
+    fi
+    if [ -n "$TAG_FILTER" ] && [ -z "${TAG_REPOS[$owner/$repo]+x}" ]; then
       continue
     fi
 

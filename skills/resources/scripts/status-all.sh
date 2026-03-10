@@ -8,11 +8,12 @@
 #   behind — local is behind remote
 #   →      — repo is symlinked from global store
 #
-# Usage: status-all.sh [--short|-s] [--fetch|-f]
+# Usage: status-all.sh [--short|-s] [--fetch|-f] [--tag=<tag>]
 #
 # Flags:
-#   --short, -s   Only show dirty repos and those out of sync
-#   --fetch, -f   Run git fetch before checking ahead/behind (shows staleness)
+#   --short, -s     Only show dirty repos and those out of sync
+#   --fetch, -f     Run git fetch before checking ahead/behind (shows staleness)
+#   --tag=<tag>     Only show repos matching this tag in registry.yaml
 
 set -euo pipefail
 
@@ -20,12 +21,26 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 SHORT=false
 FETCH=false
+TAG_FILTER=""
 for arg in "$@"; do
   case "$arg" in
     --short|-s) SHORT=true ;;
     --fetch|-f) FETCH=true ;;
+    --tag=*) TAG_FILTER="${arg#--tag=}" ;;
   esac
 done
+
+# Build tag filter set if requested
+declare -A TAG_REPOS=()
+if [ -n "$TAG_FILTER" ]; then
+  while IFS= read -r entry; do
+    TAG_REPOS["$entry"]=1
+  done < <(registry_list_by_tag "$REGISTRY" "$TAG_FILTER")
+  if [ ${#TAG_REPOS[@]} -eq 0 ]; then
+    echo "No repos found with tag: $TAG_FILTER"
+    exit 0
+  fi
+fi
 
 clean=0
 dirty=0
@@ -48,6 +63,12 @@ for owner_dir in "$RESOURCES"/*/; do
     [ -d "$repo_dir" ] || continue
     [ -d "$repo_dir/.git" ] || continue
     repo=$(basename "$repo_dir")
+
+    # Skip repos not matching tag filter
+    if [ -n "$TAG_FILTER" ] && [ -z "${TAG_REPOS[$owner/$repo]+x}" ]; then
+      continue
+    fi
+
     total=$((total + 1))
 
     # Symlink indicator
